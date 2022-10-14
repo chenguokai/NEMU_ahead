@@ -34,6 +34,19 @@ static uint8_t *pmem = (uint8_t *)0x100000000ul;
 #else
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
+
+#ifdef CONFIG_STORE_LOG
+struct store_log {
+  uint64_t inst_cnt;
+  paddr_t addr;
+  word_t orig_data;
+  // new value and write length makes no sense for restore
+} store_log_buf[CONFIG_STORE_LOG_SIZE];
+
+uint64_t store_log_ptr = 0;
+
+#endif // CONFIG_STORE_LOG
+
 #define HOST_PMEM_OFFSET (uint8_t *)(pmem - CONFIG_MBASE)
 
 uint8_t *get_pmem()
@@ -136,14 +149,42 @@ word_t paddr_read(paddr_t addr, int len, int type, int mode, vaddr_t vaddr) {
 #endif
 }
 
+#ifdef CONFIG_LIGHTQS
+
+extern uint64_t g_nr_guest_instr;
+
+void pmem_record_store(paddr_t addr) {
+  // align to 8 byte
+  addr = (addr >> 3) << 3;
+  uint64_t rdata = pmem_read(addr, 8);
+  store_log_buf[store_log_ptr].inst_cnt = g_nr_guest_instr;
+  store_log_buf[store_log_ptr].addr = addr;
+  store_log_buf[store_log_ptr].orig_data = rdata;
+  ++store_log_ptr;
+}
+
+void pmem_record_restore(uint64_t snapshot_inst_cnt) {
+  for (int i = store_log_ptr - 1; i >= 0; i--) {
+    if (store_log_buf[i].inst_cnt > snapshot_inst_cnt) {
+      pmem_write(store_log_buf[i].addr, 8, store_log_buf[i].orig_data);
+    }
+  }
+}
+
+#endif // CONFIG_LIGHTQS
+
 void paddr_write(paddr_t addr, int len, word_t data, int mode, vaddr_t vaddr) {
   if (!isa_pmp_check_permission(addr, len, MEM_TYPE_WRITE, mode)) {
     raise_access_fault(EX_SAF, vaddr);
     return ;
   }
 #ifndef CONFIG_SHARE
-  if (likely(in_pmem(addr))) pmem_write(addr, len, data);
-  else {
+  if (likely(in_pmem(addr))) {
+    #ifdef CONFIG_LIGHTQS
+    pmem_record_store(addr);
+    #endif // CONFIG_LIGHTQS
+    pmem_write(addr, len, data);
+  } else {
     if (likely(is_in_mmio(addr))) mmio_write(addr, len, data);
     else raise_access_fault(EX_SAF, vaddr);
   }
@@ -231,6 +272,20 @@ int check_store_commit(uint64_t *addr, uint64_t *data, uint8_t *mask) {
     result = 1;
   }
   return result;
+}
+
+extern char *mem_dump_file;
+
+void dump_pmem() {
+  if (mem_dump_file == NULL) {
+    printf("No memory dump file is specified, memory dump skipped.\n");
+    return ;
+  }
+  FILE *fp = fopen(mem_dump_file, "wb");
+  if (fp == NULL) {
+    printf("Cannot open file %s, memory dump skipped.\n", mem_dump_file);
+  }
+  fwrite(pmem, sizeof(char), MEMORY_SIZE, fp);
 }
 
 #endif

@@ -144,6 +144,44 @@ void isa_difftest_query_ref(void *result_buffer, uint64_t type) {
 }
 #endif
 
+extern char *reg_dump_file;
+
+void dump_regs() {
+  if (reg_dump_file == NULL) {
+    printf("No register dump file is specified, register dump skipped.\n");
+    return ;
+  }
+  FILE *fp = fopen(reg_dump_file, "w");
+  if (fp == NULL) {
+    printf("Cannot open file %s, register dump skipped.\n", reg_dump_file);
+    return ;
+  }
+  printf("mstatus %llx\n", mstatus);
+  printf("mcause %llx\n", mcause);
+  printf("mepc %llx\n", mepc);
+  printf("sstatus %llx\n", sstatus);
+  printf("scause %llx\n", scause);
+  printf("sepc %llx\n", sepc);
+  printf("satp %llx\n", satp);
+  printf("mip %llx\n", mip);
+  printf("mie %llx\n", mie);
+  printf("mscratch %llx\n", mscratch);
+  printf("sscratch %llx\n", sscratch);
+  printf("mideleg %llx\n", mideleg);
+  printf("medeleg %llx\n", medeleg);
+  printf("mtval %llx\n", mtval);
+  printf("stval %llx\n", stval);
+  printf("mtvec %llx\n", mtvec);
+  printf("stvec %llx", stvec);
+#ifdef CONFIG_RVV_010
+  printf("vtype %llx\n", vtype);
+  printf("vstart %llx\n", vstart);
+  printf("vxsat %llx\n", vxsat);
+  printf("vxrm %llx\n", vxrm);
+  printf("vl %llx\n", vl);
+#endif // CONFIG_RVV_010
+}
+
 #ifdef CONFIG_MULTICORE_DIFF
 void isa_difftest_set_mhartid(int n) {
   mhartid->val = n;

@@ -250,7 +250,7 @@ end_of_bb:
     IFNDEF(CONFIG_ENABLE_INSTR_CNT, n --);
 
     // Here is per bb action
-    uint64_t abs_inst_count = per_bb_profile(s);
+    uint64_t abs_inst_count = pernever_bb_profile(s);
     Logtb("prev pc = 0x%lx, pc = 0x%lx", prev_s->pc, s->pc);
     Logtb("Executed %ld instructions in total, pc: 0x%lx\n", (int64_t) abs_inst_count, prev_s->pc);
 
@@ -283,6 +283,97 @@ end_of_loop:
 static const void* g_exec_table[TOTAL_INSTR] = {
   MAP(INSTR_LIST, FILL_EXEC_TABLE)
 };
+
+#ifdef CONFIG_LIGHTQS
+
+struct lightqs_reg_ss {
+  uint64_t inst_cnt;
+  // snapshot stores GPR CSR
+  uint64_t mstatus, mcause, mepc, sstatus, scause, sepc,
+  satp, mip, mie, mscratch, sscratch, mideleg, medeleg,
+  mtval, stval, mtvec, stvec;
+#ifdef CONFIG_RVV_010
+  uint64_t vtype, vstart, vxsat, vxrm, vl;
+#endif // CONFIG_RVV_010
+  uint64_t gpr[32], fpr[32];
+  uint64_t mode;
+  uint64_t pc;
+  uint64_t lr_addr, lr_valid;
+  // RAM is store-logged at another position
+} reg_ss;
+
+void lightqs_take_reg_snapshot() {
+  reg_ss.inst_cnt = g_nr_guest_instr；
+  reg_ss.pc = cpu.pc;
+  reg_ss.mstatus = cpu.mstatus;
+  reg_ss.mcause = cpu.mcause;
+  reg_ss.mepc = cpu.mepc;
+  reg_ss.sstatus = cpu.sstatus;
+  reg_ss.scause = cpu.scause;
+  reg_ss.sepc = cpu.sepc;
+  reg_ss.satp = cpu.satp;
+  reg_ss.mip = cpu.mip;
+  reg_ss.mie = cpu.mie;
+  reg_ss.mscratch = cpu.mscratch;
+  reg_ss.sscratch = cpu.sscratch;
+  reg_ss.medeleg = cpu.medeleg;
+  reg_ss.mideleg = cpu.mideleg;
+  reg_ss.mtval = cpu.mtval;
+  reg_ss.stval = cpu.stval;
+  reg_ss.mtvec = cpu.mtvec;
+  reg_ss.stvec = cpu.stvec;
+  reg_ss.mode = cpu.mode;
+  reg_ss.lr_addr = cpu.lr_addr;
+  reg_ss.lr_valid = cpu.lr_valid;
+#ifdef CONFIG_RVV_010
+  reg_ss.vtype = cpu.vtype;
+  reg_ss.vstart = cpu.vstart;
+  reg_ss.vxsat = cpu.vxsat;
+  reg_ss.vxrm = cpu.vxrm;
+  reg_ss.vl = cpu.vl;
+#endif // CONFIG_RVV_010
+  for (int i = 0; i < 32; i++) {
+    reg_ss.gpr[i] = cpu.gpr[i]._64;
+    reg_ss.fpr[i] = cpu.fpr[i]._64;
+  }
+}
+
+void lightqs_restore_reg_snapshot() {
+  g_nr_guest_instr = reg_ss.inst_cnt;
+  cpu.pc = reg_ss.pc;
+  cpu.mstatus = reg_ss.mstatus;
+  cpu.mcause = reg_ss.mcause;
+  cpu.mepc = reg_ss.mepc;
+  cpu.sstatus = reg_ss.sstatus;
+  cpu.scause = reg_ss.scause;
+  cpu.sepc = reg_ss.sepc;
+  cpu.satp = reg_ss.satp;
+  cpu.mip = reg_ss.mip;
+  cpu.mie = reg_ss.mie;
+  cpu.mscratch = reg_ss.mscratch;
+  cpu.sscratch = reg_ss.sscratch;
+  cpu.medeleg = reg_ss.medeleg;
+  cpu.mideleg = reg_ss.mideleg;
+  cpu.mtval = reg_ss.mtval;
+  cpu.stval = reg_ss.stval;
+  cpu.mode = reg_ss.mode;
+  cpu.lr_addr = reg_ss.lr_addr;
+  cpu.lr_valid = reg_ss.lr_valid;
+#ifdef CONFIG_RVV_010
+  cpu.vtype = reg_ss.vtype;
+  cpu.vstart = reg_ss.vstart;
+  cpu.vxsat = reg_ss.vxsat;
+  cpu.vxrm = reg_ss.vxrm;
+  cpu.vl = reg_ss.vl;
+#endif // CONFIG_RVV_010
+  for (int i = 0; i < 32; i++) {
+    cpu.gpr[i]._64 = reg_ss.gpr[i];
+    cpu.fpr[i]._64 = reg_ss.fpr[i];
+  }
+
+}
+
+#endif // CONFIG_LIGHTQS
 
 static int execute(int n) {
   static Decode s;
