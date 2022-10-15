@@ -476,8 +476,15 @@ void cpu_exec(uint64_t n) {
     Loge("n_remain_total: %lu", n_remain_total);
 #else
     n_remain_total -= n_batch;
+
+
 #endif
   }
+
+  extern void dump_pmem();
+  extern void dump_regs();
+  dump_pmem();
+  dump_regs();
 
   // If nemu_state.state is NEMU_RUNNING, n_remain_total should be zero.
   if (nemu_state.state == NEMU_RUNNING) {

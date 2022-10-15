@@ -163,9 +163,9 @@ void pmem_record_store(paddr_t addr) {
   ++store_log_ptr;
 }
 
-void pmem_record_restore(uint64_t snapshot_inst_cnt) {
+void pmem_record_restore(uint64_t restore_inst_cnt) {
   for (int i = store_log_ptr - 1; i >= 0; i--) {
-    if (store_log_buf[i].inst_cnt > snapshot_inst_cnt) {
+    if (store_log_buf[i].inst_cnt > restore_inst_cnt) {
       pmem_write(store_log_buf[i].addr, 8, store_log_buf[i].orig_data);
     }
   }
@@ -274,6 +274,8 @@ int check_store_commit(uint64_t *addr, uint64_t *data, uint8_t *mask) {
   return result;
 }
 
+#endif
+
 extern char *mem_dump_file;
 
 void dump_pmem() {
@@ -288,4 +290,4 @@ void dump_pmem() {
   fwrite(pmem, sizeof(char), MEMORY_SIZE, fp);
 }
 
-#endif
+

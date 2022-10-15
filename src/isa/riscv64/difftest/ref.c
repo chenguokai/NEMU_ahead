@@ -156,30 +156,36 @@ void dump_regs() {
     printf("Cannot open file %s, register dump skipped.\n", reg_dump_file);
     return ;
   }
-  printf("mstatus %llx\n", mstatus);
-  printf("mcause %llx\n", mcause);
-  printf("mepc %llx\n", mepc);
-  printf("sstatus %llx\n", sstatus);
-  printf("scause %llx\n", scause);
-  printf("sepc %llx\n", sepc);
-  printf("satp %llx\n", satp);
-  printf("mip %llx\n", mip);
-  printf("mie %llx\n", mie);
-  printf("mscratch %llx\n", mscratch);
-  printf("sscratch %llx\n", sscratch);
-  printf("mideleg %llx\n", mideleg);
-  printf("medeleg %llx\n", medeleg);
-  printf("mtval %llx\n", mtval);
-  printf("stval %llx\n", stval);
-  printf("mtvec %llx\n", mtvec);
-  printf("stvec %llx", stvec);
+  fprintf(fp, "mstatus %lx\n", cpu.mstatus);
+  fprintf(fp, "mcause %lx\n", cpu.mcause);
+  fprintf(fp, "mepc %lx\n", cpu.mepc);
+  fprintf(fp, "sstatus %lx\n", cpu.sstatus);
+  fprintf(fp, "scause %lx\n", cpu.scause);
+  fprintf(fp, "sepc %lx\n", cpu.sepc);
+  fprintf(fp, "satp %lx\n", cpu.satp);
+  fprintf(fp, "mip %lx\n", cpu.mip);
+  fprintf(fp, "mie %lx\n", cpu.mie);
+  fprintf(fp, "mscratch %lx\n", cpu.mscratch);
+  fprintf(fp, "sscratch %lx\n", cpu.sscratch);
+  fprintf(fp, "mideleg %lx\n", cpu.mideleg);
+  fprintf(fp, "medeleg %lx\n", cpu.medeleg);
+  fprintf(fp, "mtval %lx\n", cpu.mtval);
+  fprintf(fp, "stval %lx\n", cpu.stval);
+  fprintf(fp, "mtvec %lx\n", cpu.mtvec);
+  fprintf(fp, "stvec %lx\n", cpu.stvec);
 #ifdef CONFIG_RVV_010
-  printf("vtype %llx\n", vtype);
-  printf("vstart %llx\n", vstart);
-  printf("vxsat %llx\n", vxsat);
-  printf("vxrm %llx\n", vxrm);
-  printf("vl %llx\n", vl);
+  fprintf(fp, "vtype %lx\n", vtype);
+  fprintf(fp, "vstart %lx\n", vstart);
+  fprintf(fp, "vxsat %lx\n", vxsat);
+  fprintf(fp, "vxrm %lx\n", vxrm);
+  fprintf(fp, "vl %lx\n", vl);
 #endif // CONFIG_RVV_010
+  for (int i = 0; i < 32; i++) {
+    fprintf(fp, "gpr %d %lx\n", i, cpu.gpr[i]._64);
+  }
+  for (int i = 0; i < 32; i++) {
+    fprintf(fp, "fpr %d %lx\n", i, cpu.fpr[i]._64);
+  }
 }
 
 #ifdef CONFIG_MULTICORE_DIFF
