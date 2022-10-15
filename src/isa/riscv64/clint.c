@@ -25,6 +25,15 @@
 
 static uint64_t *clint_base = NULL;
 static uint64_t boot_time = 0;
+uint64_t clint_snapshot;
+
+void clint_take_snapshot() {
+  clint_snapshot = clint_base[CLINT_MTIME];
+}
+
+void clint_restore_snapshot() {
+  clint_base[CLINT_MTIME] = clint_snapshot;
+}
 
 void update_clint() {
 #ifdef CONFIG_DETERMINISTIC
@@ -42,6 +51,7 @@ uint64_t clint_uptime() {
 }
 
 static void clint_io_handler(uint32_t offset, int len, bool is_write) {
+  printf("clint op write %d addr %x\n", is_write, offset);
   update_clint();
 }
 

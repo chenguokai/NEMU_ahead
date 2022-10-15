@@ -455,8 +455,10 @@ void cpu_exec(uint64_t n) {
 #endif
 
     extern void pmem_record_reset();
+    extern void clint_take_snapshot();
     pmem_record_reset();
     lightqs_take_reg_snapshot();
+    clint_take_snapshot();
 
     if (cause == NEMU_EXEC_EXCEPTION) {
       Loge("Handle NEMU_EXEC_EXCEPTION");
@@ -492,6 +494,8 @@ void cpu_exec(uint64_t n) {
 
   pmem_record_restore(reg_ss.inst_cnt);
   uint64_t remain_inst_cnt = lightqs_restore_reg_snapshot(n);
+  extern void clint_restore_snapshot();
+  clint_restore_snapshot();
   execute(remain_inst_cnt);
 
   extern void dump_pmem();
