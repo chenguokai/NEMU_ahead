@@ -14,6 +14,20 @@ config PADDRBITS
   default 36 if SHARE
   default 40
 
+config STORE_LOG
+  bool "Enable store log"
+  default n
+
+config STORE_LOG_SIZE
+  int "The size of store log"
+  depends on STORE_LOG
+  default 80000
+
+config LIGHTQS
+  bool "Enable lightssss"
+  depends on STORE_LOG
+  default n
+
 config BBL_OFFSET_WITH_CPT
   hex "The offset of bbl / baremetal app with using gcpt"
   default 0xa0000

@@ -303,7 +303,7 @@ struct lightqs_reg_ss {
 } reg_ss;
 
 void lightqs_take_reg_snapshot() {
-  reg_ss.inst_cnt = g_nr_guest_instr；
+  reg_ss.inst_cnt = g_nr_guest_instr;
   reg_ss.pc = cpu.pc;
   reg_ss.mstatus = cpu.mstatus;
   reg_ss.mcause = cpu.mcause;
@@ -338,7 +338,7 @@ void lightqs_take_reg_snapshot() {
   }
 }
 
-void lightqs_restore_reg_snapshot() {
+uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
   g_nr_guest_instr = reg_ss.inst_cnt;
   cpu.pc = reg_ss.pc;
   cpu.mstatus = reg_ss.mstatus;
@@ -370,7 +370,7 @@ void lightqs_restore_reg_snapshot() {
     cpu.gpr[i]._64 = reg_ss.gpr[i];
     cpu.fpr[i]._64 = reg_ss.fpr[i];
   }
-
+  return n - reg_ss.inst_cnt;
 }
 
 #endif // CONFIG_LIGHTQS
@@ -418,6 +418,8 @@ static void update_global() {
 }
 #endif
 
+  #define AHEAD_LENGTH 100
+
 /* Simulate how the CPU works. */
 void cpu_exec(uint64_t n) {
   IFDEF(CONFIG_SHARE, assert(n <= 1));
@@ -433,7 +435,7 @@ void cpu_exec(uint64_t n) {
 
   uint64_t timer_start = get_time();
 
-  n_remain_total = n; // deal with setjmp()
+  n_remain_total = n + AHEAD_LENGTH; // deal with setjmp()
   Loge("cpu_exec will exec %lu instrunctions", n_remain_total);
   int cause;
   if ((cause = setjmp(jbuf_exec))) {
@@ -451,6 +453,10 @@ void cpu_exec(uint64_t n) {
     extern void device_update();
     device_update();
 #endif
+
+    extern void pmem_record_reset();
+    pmem_record_reset();
+    lightqs_take_reg_snapshot();
 
     if (cause == NEMU_EXEC_EXCEPTION) {
       Loge("Handle NEMU_EXEC_EXCEPTION");
@@ -481,10 +487,18 @@ void cpu_exec(uint64_t n) {
 #endif
   }
 
+  // restore to expected point
+  void pmem_record_restore(uint64_t restore_inst_cnt);
+
+  pmem_record_restore(reg_ss.inst_cnt);
+  uint64_t remain_inst_cnt = lightqs_restore_reg_snapshot(n);
+  execute(remain_inst_cnt);
+
   extern void dump_pmem();
   extern void dump_regs();
   dump_pmem();
   dump_regs();
+
 
   // If nemu_state.state is NEMU_RUNNING, n_remain_total should be zero.
   if (nemu_state.state == NEMU_RUNNING) {

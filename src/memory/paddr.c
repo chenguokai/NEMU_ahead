@@ -167,8 +167,14 @@ void pmem_record_restore(uint64_t restore_inst_cnt) {
   for (int i = store_log_ptr - 1; i >= 0; i--) {
     if (store_log_buf[i].inst_cnt > restore_inst_cnt) {
       pmem_write(store_log_buf[i].addr, 8, store_log_buf[i].orig_data);
+    } else {
+      break;
     }
   }
+}
+
+void pmem_record_reset() {
+  store_log_ptr = 0;
 }
 
 #endif // CONFIG_LIGHTQS
