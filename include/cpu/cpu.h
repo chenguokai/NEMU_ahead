@@ -18,6 +18,8 @@
 
 #include <common.h>
 
+#define AHEAD_LENGTH 100
+
 enum {
   NEMU_EXEC_RUNNING = 0, // unused by longjmp()
   NEMU_EXEC_END,
@@ -39,5 +41,11 @@ void mmu_tlb_flush(vaddr_t vaddr);
 struct Decode;
 void save_globals(struct Decode *s);
 void fetch_decode(struct Decode *s, vaddr_t pc);
-
+void lightqs_take_reg_snapshot();
+void clint_take_snapshot();
+void lightqs_take_spec_reg_snapshot();
+void clint_take_spec_snapshot();
+uint64_t lightqs_restore_reg_snapshot(uint64_t n);
+void pmem_record_restore(uint64_t restore_inst_cnt);
+void clint_restore_snapshot(uint64_t restore_inst_cnt);
 #endif

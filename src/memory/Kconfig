@@ -23,6 +23,11 @@ config STORE_LOG_SIZE
   depends on STORE_LOG
   default 80000
 
+config SPEC_GAP
+  int "distance between speculative and stable snapshot"
+  depends on LIGHTQS
+  default 40
+
 config LIGHTQS
   bool "Enable lightssss"
   depends on STORE_LOG

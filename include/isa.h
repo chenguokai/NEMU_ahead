@@ -65,11 +65,11 @@ bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc);
 void isa_difftest_attach();
 
   // for ref
-void isa_difftest_regcpy(void *dut, bool direction);
+void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t restore_count);
 void isa_difftest_csrcpy(void *dut, bool direction);
-void isa_difftest_raise_intr(word_t NO);
+void isa_difftest_raise_intr(word_t NO, uint64_t restore_count);
 void isa_difftest_uarchstatus_cpy(void *dut, bool direction);
-void isa_difftest_guided_exec(void *guide);
+void isa_difftest_guided_exec(void *guide, uint64_t restore_count);
 void isa_difftest_query_ref(void *result_buffer, uint64_t type);
 #ifdef CONFIG_MULTICORE_DIFF
 void isa_difftest_set_mhartid(int n);

@@ -41,9 +41,9 @@ struct store_log {
   paddr_t addr;
   word_t orig_data;
   // new value and write length makes no sense for restore
-} store_log_buf[CONFIG_STORE_LOG_SIZE];
+} store_log_buf[CONFIG_STORE_LOG_SIZE], spec_store_log_buf[CONFIG_STORE_LOG_SIZE];
 
-uint64_t store_log_ptr = 0;
+uint64_t store_log_ptr = 0, spec_store_log_ptr = CONFIG_SPEC_GAP;
 
 #endif // CONFIG_STORE_LOG
 
@@ -153,17 +153,32 @@ word_t paddr_read(paddr_t addr, int len, int type, int mode, vaddr_t vaddr) {
 
 extern uint64_t g_nr_guest_instr;
 
+extern uint64_t stable_log_begin, spec_log_begin;
+
 void pmem_record_store(paddr_t addr) {
   // align to 8 byte
   addr = (addr >> 3) << 3;
   uint64_t rdata = pmem_read(addr, 8);
+  assert(g_nr_guest_instr >= stable_log_begin);
   store_log_buf[store_log_ptr].inst_cnt = g_nr_guest_instr;
   store_log_buf[store_log_ptr].addr = addr;
   store_log_buf[store_log_ptr].orig_data = rdata;
   ++store_log_ptr;
+  if (g_nr_guest_instr >= spec_log_begin) {
+    spec_store_log_buf[spec_store_log_ptr].inst_cnt = g_nr_guest_instr;
+    spec_store_log_buf[spec_store_log_ptr].addr = addr;
+    spec_store_log_buf[spec_store_log_ptr].orig_data = rdata;
+  }
 }
 
+
+
 void pmem_record_restore(uint64_t restore_inst_cnt) {
+  if (spec_log_begin <= restore_inst_cnt) {
+    // use speculative rather than old stable
+    memcpy(store_log_buf, spec_store_log_buf, sizeof(store_log_buf));
+    store_log_ptr = spec_store_log_ptr;
+  }
   for (int i = store_log_ptr - 1; i >= 0; i--) {
     if (store_log_buf[i].inst_cnt > restore_inst_cnt) {
       pmem_write(store_log_buf[i].addr, 8, store_log_buf[i].orig_data);
@@ -282,7 +297,7 @@ int check_store_commit(uint64_t *addr, uint64_t *data, uint8_t *mask) {
 
 #endif
 
-extern char *mem_dump_file;
+char *mem_dump_file = NULL;
 
 void dump_pmem() {
   if (mem_dump_file == NULL) {

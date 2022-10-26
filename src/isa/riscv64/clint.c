@@ -25,13 +25,23 @@
 
 static uint64_t *clint_base = NULL;
 static uint64_t boot_time = 0;
-uint64_t clint_snapshot;
+uint64_t clint_snapshot, spec_clint_snapshot;
+
+extern uint64_t g_nr_guest_instr;
+extern uint64_t stable_log_begin, spec_log_begin;
 
 void clint_take_snapshot() {
   clint_snapshot = clint_base[CLINT_MTIME];
 }
 
-void clint_restore_snapshot() {
+void clint_take_spec_snapshot() {
+  spec_clint_snapshot = clint_base[CLINT_MTIME];
+}
+
+void clint_restore_snapshot(uint64_t restore_inst_cnt) {
+  if (spec_clint_snapshot <= restore_inst_cnt) {
+    clint_snapshot = spec_clint_snapshot;
+  }
   clint_base[CLINT_MTIME] = clint_snapshot;
 }
 

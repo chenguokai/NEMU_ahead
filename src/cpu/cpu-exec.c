@@ -286,6 +286,8 @@ static const void* g_exec_table[TOTAL_INSTR] = {
 
 #ifdef CONFIG_LIGHTQS
 
+uint64_t stable_log_begin, spec_log_begin;
+
 struct lightqs_reg_ss {
   uint64_t inst_cnt;
   // snapshot stores GPR CSR
@@ -300,7 +302,7 @@ struct lightqs_reg_ss {
   uint64_t pc;
   uint64_t lr_addr, lr_valid;
   // RAM is store-logged at another position
-} reg_ss;
+} reg_ss, spec_reg_ss;
 
 void lightqs_take_reg_snapshot() {
   reg_ss.inst_cnt = g_nr_guest_instr;
@@ -338,7 +340,46 @@ void lightqs_take_reg_snapshot() {
   }
 }
 
+void lightqs_take_spec_reg_snapshot() {
+  spec_reg_ss.inst_cnt = g_nr_guest_instr;
+  spec_reg_ss.pc = cpu.pc;
+  spec_reg_ss.mstatus = cpu.mstatus;
+  spec_reg_ss.mcause = cpu.mcause;
+  spec_reg_ss.mepc = cpu.mepc;
+  spec_reg_ss.sstatus = cpu.sstatus;
+  spec_reg_ss.scause = cpu.scause;
+  spec_reg_ss.sepc = cpu.sepc;
+  spec_reg_ss.satp = cpu.satp;
+  spec_reg_ss.mip = cpu.mip;
+  spec_reg_ss.mie = cpu.mie;
+  spec_reg_ss.mscratch = cpu.mscratch;
+  spec_reg_ss.sscratch = cpu.sscratch;
+  spec_reg_ss.medeleg = cpu.medeleg;
+  spec_reg_ss.mideleg = cpu.mideleg;
+  spec_reg_ss.mtval = cpu.mtval;
+  spec_reg_ss.stval = cpu.stval;
+  spec_reg_ss.mtvec = cpu.mtvec;
+  spec_reg_ss.stvec = cpu.stvec;
+  spec_reg_ss.mode = cpu.mode;
+  spec_reg_ss.lr_addr = cpu.lr_addr;
+  spec_reg_ss.lr_valid = cpu.lr_valid;
+#ifdef CONFIG_RVV_010
+  spec_reg_ss.vtype = cpu.vtype;
+  spec_reg_ss.vstart = cpu.vstart;
+  spec_reg_ss.vxsat = cpu.vxsat;
+  spec_reg_ss.vxrm = cpu.vxrm;
+  spec_reg_ss.vl = cpu.vl;
+#endif // CONFIG_RVV_010
+  for (int i = 0; i < 32; i++) {
+    spec_reg_ss.gpr[i] = cpu.gpr[i]._64;
+    spec_reg_ss.fpr[i] = cpu.fpr[i]._64;
+  }
+}
+
 uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
+  if (spec_log_begin <= n) {
+    memcpy(&reg_ss, &spec_reg_ss, sizeof(reg_ss));
+  }
   g_nr_guest_instr = reg_ss.inst_cnt;
   cpu.pc = reg_ss.pc;
   cpu.mstatus = reg_ss.mstatus;
@@ -418,11 +459,12 @@ static void update_global() {
 }
 #endif
 
-  #define AHEAD_LENGTH 100
 
 /* Simulate how the CPU works. */
 void cpu_exec(uint64_t n) {
+#ifndef CONFIG_LIGHTQS
   IFDEF(CONFIG_SHARE, assert(n <= 1));
+#endif
   g_print_step = (n < MAX_INSTR_TO_PRINT);
   switch (nemu_state.state) {
     case NEMU_END: case NEMU_ABORT:
@@ -435,7 +477,7 @@ void cpu_exec(uint64_t n) {
 
   uint64_t timer_start = get_time();
 
-  n_remain_total = n + AHEAD_LENGTH; // deal with setjmp()
+  n_remain_total = n; // + AHEAD_LENGTH; // deal with setjmp()
   Loge("cpu_exec will exec %lu instrunctions", n_remain_total);
   int cause;
   if ((cause = setjmp(jbuf_exec))) {
@@ -454,11 +496,13 @@ void cpu_exec(uint64_t n) {
     device_update();
 #endif
 
+#ifndef CONFIG_SHARE
     extern void pmem_record_reset();
     extern void clint_take_snapshot();
     pmem_record_reset();
     lightqs_take_reg_snapshot();
     clint_take_snapshot();
+#endif // CONFIG_SHARE
 
     if (cause == NEMU_EXEC_EXCEPTION) {
       Loge("Handle NEMU_EXEC_EXCEPTION");
@@ -489,9 +533,9 @@ void cpu_exec(uint64_t n) {
 #endif
   }
 
+#ifndef CONFIG_SHARE
   // restore to expected point
   void pmem_record_restore(uint64_t restore_inst_cnt);
-
   pmem_record_restore(reg_ss.inst_cnt);
   uint64_t remain_inst_cnt = lightqs_restore_reg_snapshot(n);
   extern void clint_restore_snapshot();
@@ -502,7 +546,7 @@ void cpu_exec(uint64_t n) {
   extern void dump_regs();
   dump_pmem();
   dump_regs();
-
+#endif // CONFIG_SHARE
 
   // If nemu_state.state is NEMU_RUNNING, n_remain_total should be zero.
   if (nemu_state.state == NEMU_RUNNING) {
