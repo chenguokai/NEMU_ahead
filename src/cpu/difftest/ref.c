@@ -79,6 +79,8 @@ void difftest_set_ramsize(size_t ram_size){
 }
 
 void difftest_regcpy(void *dut, bool direction, bool restore, uint64_t restore_count) {
+  if (restore)
+    printf("regcpy with restore called, dut = %lx restore = %d, restore_count = %lu\n", (uint64_t)dut, restore, restore_count);
   isa_difftest_regcpy(dut, direction, restore, restore_count);
 }
 
@@ -105,6 +107,7 @@ void difftest_exec(uint64_t n) {
 }
 
 void difftest_guided_exec(void * guide, uint64_t restore_count) {
+  printf("guided exec called\n");
 #ifdef CONFIG_GUIDED_EXEC
   isa_difftest_guided_exec(guide, restore_count);
 #else
@@ -119,6 +122,7 @@ void difftest_query_ref(void * result_buffer, uint64_t type) {
 #endif
 
 void difftest_raise_intr(word_t NO, uint64_t restore_count) {
+  printf("raise intr called\n");
   isa_difftest_raise_intr(NO, restore_count);
 }
 
@@ -135,10 +139,10 @@ void difftest_runahead_init() {
   stable_log_begin = 0;
   spec_log_begin = AHEAD_LENGTH;
   lightqs_take_reg_snapshot();
-  // clint_take_snapshot();
+  clint_take_snapshot();
   cpu_exec(AHEAD_LENGTH);
   lightqs_take_spec_reg_snapshot();
-  // clint_take_spec_snapshot();
+  clint_take_spec_snapshot();
 #endif // CONFIG_LIGHTQS
 #endif // CONFIG_SHARE
 }

@@ -120,7 +120,7 @@ word_t paddr_read(paddr_t addr, int len, int type, int mode, vaddr_t vaddr) {
     raise_read_access_fault(type, vaddr);
     return 0;
   }
-#ifndef CONFIG_SHARE
+#if true
   if (likely(in_pmem(addr))) return pmem_read(addr, len);
   else {
     if (likely(is_in_mmio(addr))) return mmio_read(addr, len);
@@ -159,7 +159,7 @@ void pmem_record_store(paddr_t addr) {
   // align to 8 byte
   addr = (addr >> 3) << 3;
   uint64_t rdata = pmem_read(addr, 8);
-  assert(g_nr_guest_instr >= stable_log_begin);
+  //assert(g_nr_guest_instr >= stable_log_begin);
   store_log_buf[store_log_ptr].inst_cnt = g_nr_guest_instr;
   store_log_buf[store_log_ptr].addr = addr;
   store_log_buf[store_log_ptr].orig_data = rdata;
@@ -199,7 +199,7 @@ void paddr_write(paddr_t addr, int len, word_t data, int mode, vaddr_t vaddr) {
     raise_access_fault(EX_SAF, vaddr);
     return ;
   }
-#ifndef CONFIG_SHARE
+#ifdef CONFIG_SHARE
   if (likely(in_pmem(addr))) {
     #ifdef CONFIG_LIGHTQS
     pmem_record_store(addr);

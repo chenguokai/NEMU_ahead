@@ -85,9 +85,16 @@ extern uint64_t stable_log_begin, spec_log_begin;
 
 void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t restore_count) {
   if (restore) {
+    printf("restore count %lu\n", restore_count);
     uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
+    printf("left exec = %lx\n", left_exec);
     pmem_record_restore(restore_count);
     // clint_restore_snapshot(restore_count);
+
+    if (spec_log_begin <= restore_count) {
+      // must have restored using spec snapshot
+      stable_log_begin = spec_log_begin;
+    }
     cpu_exec(left_exec);
   }
 
@@ -101,15 +108,17 @@ void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t resto
 
   // after processing, take another snapshot
   // FIXME: update spec_log_begin
-  stable_log_begin = restore_count;
-  spec_log_begin = restore_count + AHEAD_LENGTH;
-  lightqs_take_reg_snapshot();
-  // clint_take_snapshot();
-  // pmem ops are logged automatically
-  cpu_exec(AHEAD_LENGTH);
-  lightqs_take_spec_reg_snapshot();
-  // clint_take_spec_snapshot();
-
+  if (restore) {
+    lightqs_take_reg_snapshot();
+    clint_take_snapshot();
+    // pmem ops are logged automatically
+    cpu_exec(AHEAD_LENGTH);
+    stable_log_begin = restore_count;
+    spec_log_begin = restore_count + AHEAD_LENGTH;
+    lightqs_take_spec_reg_snapshot();
+    clint_take_spec_snapshot();
+  }
+  
 }
 
 void isa_difftest_csrcpy(void *dut, bool direction) {
@@ -137,20 +146,27 @@ void isa_difftest_raise_intr(word_t NO, uint64_t restore_count) {
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
   pmem_record_restore(restore_count);
   // clint_restore_snapshot(restore_count);
+
+  if (spec_log_begin <= restore_count) {
+    // must have restored using spec snapshot
+    stable_log_begin = spec_log_begin;
+  }
   cpu_exec(left_exec);
 
   cpu.pc = raise_intr(NO, cpu.pc);
 
-  stable_log_begin = restore_count;
-  spec_log_begin = restore_count + AHEAD_LENGTH;
+  
   // after processing, take another snapshot
   // FIXME: update spec_log_begin
   lightqs_take_reg_snapshot();
-  // clint_take_snapshot();
+  clint_take_snapshot();
   // pmem ops are logged automatically
+  stable_log_begin = restore_count;
+  spec_log_begin = restore_count + AHEAD_LENGTH;
   cpu_exec(AHEAD_LENGTH);
+  
   lightqs_take_spec_reg_snapshot();
-  // clint_take_spec_snapshot();
+  clint_take_spec_snapshot();
 }
 
 #ifdef CONFIG_GUIDED_EXEC
@@ -159,6 +175,11 @@ void isa_difftest_guided_exec(void * guide, uint64_t restore_count) {
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
   pmem_record_restore(restore_count);
   // clint_restore_snapshot(restore_count);
+
+  if (spec_log_begin <= restore_count) {
+    // must have restored using spec snapshot
+    stable_log_begin = spec_log_begin;
+  }
   cpu_exec(left_exec);
 
   memcpy(&cpu.execution_guide, guide, sizeof(struct ExecutionGuide));
@@ -166,17 +187,17 @@ void isa_difftest_guided_exec(void * guide, uint64_t restore_count) {
   cpu.guided_exec = true;
   cpu_exec(1);
   cpu.guided_exec = false;
-
-  stable_log_begin = restore_count;
-  spec_log_begin = restore_count + AHEAD_LENGTH;
+  
   // after processing, take another snapshot
   // FIXME: update spec_log_begin
   lightqs_take_reg_snapshot();
-  // clint_take_snapshot();
+  clint_take_snapshot();
   // pmem ops are logged automatically
   cpu_exec(AHEAD_LENGTH);
+  stable_log_begin = restore_count;
+  spec_log_begin = restore_count + AHEAD_LENGTH;
   lightqs_take_spec_reg_snapshot();
-  // clint_take_spec_snapshot();
+  clint_take_spec_snapshot();
 }
 #endif
 

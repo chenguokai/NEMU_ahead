@@ -14,8 +14,12 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+extern uint64_t br_count;
+
 def_EHelper(jal) {
   rtl_li(s, ddest, id_src2->imm);
+  printf("%lx,%lx.%d,%d,%lx\n", br_count, cpu.pc, 1, 1, id_src1->imm);
+  br_count++;
   rtl_j(s, id_src1->imm);
 }
 

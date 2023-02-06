@@ -283,6 +283,7 @@ end_of_loop:
 static const void* g_exec_table[TOTAL_INSTR] = {
   MAP(INSTR_LIST, FILL_EXEC_TABLE)
 };
+uint64_t br_count = 0;
 
 #ifdef CONFIG_LIGHTQS
 
@@ -290,6 +291,7 @@ uint64_t stable_log_begin, spec_log_begin;
 
 struct lightqs_reg_ss {
   uint64_t inst_cnt;
+  uint64_t br_cnt;
   // snapshot stores GPR CSR
   uint64_t mstatus, mcause, mepc, sstatus, scause, sepc,
   satp, mip, mie, mscratch, sscratch, mideleg, medeleg,
@@ -305,7 +307,9 @@ struct lightqs_reg_ss {
 } reg_ss, spec_reg_ss;
 
 void lightqs_take_reg_snapshot() {
+  reg_ss.br_cnt = br_count;
   reg_ss.inst_cnt = g_nr_guest_instr;
+  printf("current g instr cnt = %lu\n", g_nr_guest_instr);
   reg_ss.pc = cpu.pc;
   reg_ss.mstatus = cpu.mstatus;
   reg_ss.mcause = cpu.mcause;
@@ -341,6 +345,7 @@ void lightqs_take_reg_snapshot() {
 }
 
 void lightqs_take_spec_reg_snapshot() {
+  spec_reg_ss.br_cnt = br_count;
   spec_reg_ss.inst_cnt = g_nr_guest_instr;
   spec_reg_ss.pc = cpu.pc;
   spec_reg_ss.mstatus = cpu.mstatus;
@@ -377,9 +382,13 @@ void lightqs_take_spec_reg_snapshot() {
 }
 
 uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
+  printf("lightqs restore reg n = %lu\n", n);
+  printf("lightqs origin reg_ss inst cnt %lu\n", reg_ss.br_cnt);
   if (spec_log_begin <= n) {
+    printf("lightqs using spec snapshot\n");
     memcpy(&reg_ss, &spec_reg_ss, sizeof(reg_ss));
   }
+  br_count = reg_ss.br_cnt;
   g_nr_guest_instr = reg_ss.inst_cnt;
   cpu.pc = reg_ss.pc;
   cpu.mstatus = reg_ss.mstatus;
@@ -411,6 +420,7 @@ uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
     cpu.gpr[i]._64 = reg_ss.gpr[i];
     cpu.fpr[i]._64 = reg_ss.fpr[i];
   }
+  printf("lightqs restore inst_cnt %lu\n", reg_ss.inst_cnt);
   return n - reg_ss.inst_cnt;
 }
 
@@ -419,7 +429,10 @@ uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
 static int execute(int n) {
   static Decode s;
   prev_s = &s;
+  printf("ahead batch %d\n", n);
   for (;n > 0; n --) {
+    printf("ahead pc %lx\n", cpu.pc);
+    printf("myspecialpc %lx %lx\n", g_nr_guest_instr, cpu.pc);
     fetch_decode(&s, cpu.pc);
     cpu.debug.current_pc = s.pc;
     cpu.pc = s.snpc;
