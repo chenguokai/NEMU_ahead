@@ -285,26 +285,15 @@ static const void* g_exec_table[TOTAL_INSTR] = {
 };
 uint64_t br_count = 0;
 
+#define BRLOGSIZE 0x100000
+
+struct br_info br_log[BRLOGSIZE];
+
 #ifdef CONFIG_LIGHTQS
 
 uint64_t stable_log_begin, spec_log_begin;
 
-struct lightqs_reg_ss {
-  uint64_t inst_cnt;
-  uint64_t br_cnt;
-  // snapshot stores GPR CSR
-  uint64_t mstatus, mcause, mepc, sstatus, scause, sepc,
-  satp, mip, mie, mscratch, sscratch, mideleg, medeleg,
-  mtval, stval, mtvec, stvec;
-#ifdef CONFIG_RVV_010
-  uint64_t vtype, vstart, vxsat, vxrm, vl;
-#endif // CONFIG_RVV_010
-  uint64_t gpr[32], fpr[32];
-  uint64_t mode;
-  uint64_t pc;
-  uint64_t lr_addr, lr_valid;
-  // RAM is store-logged at another position
-} reg_ss, spec_reg_ss;
+struct lightqs_reg_ss reg_ss, spec_reg_ss;
 
 void lightqs_take_reg_snapshot() {
   reg_ss.br_cnt = br_count;
@@ -443,6 +432,14 @@ static int execute(int n) {
 #endif
     s.EHelper(&s);
     g_nr_guest_instr ++;
+    if (g_nr_guest_instr == 20000) {
+      // print out to file
+      FILE *f = fopen("/nfs/home/chenguokai/NEMU_ahead/ahead.txt", "w");
+      for (int i = 0; i < 100; i++) {
+        fprintf(f, "%010lx %d %d %010lx\n", br_log[i].pc, br_log[i].taken, br_log[i].type, br_log[i].target);
+      }
+      fclose(f);
+    }
     IFDEF(CONFIG_DEBUG, debug_hook(s.pc, s.logbuf));
     IFDEF(CONFIG_DIFFTEST, difftest_step(s.pc, cpu.pc));
     if (nemu_state.state == NEMU_STOP) {

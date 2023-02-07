@@ -83,12 +83,14 @@ static void csr_writeback() {
 
 extern uint64_t stable_log_begin, spec_log_begin;
 
+extern struct lightqs_reg_ss reg_ss;
+
 void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t restore_count) {
   if (restore) {
     printf("restore count %lu\n", restore_count);
     uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
     printf("left exec = %lx\n", left_exec);
-    pmem_record_restore(restore_count);
+    pmem_record_restore(reg_ss.inst_cnt);
     // clint_restore_snapshot(restore_count);
 
     if (spec_log_begin <= restore_count) {
@@ -144,7 +146,7 @@ void isa_difftest_uarchstatus_cpy(void *dut, bool direction) {
 void isa_difftest_raise_intr(word_t NO, uint64_t restore_count) {
 
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
-  pmem_record_restore(restore_count);
+  pmem_record_restore(reg_ss.inst_cnt);
   // clint_restore_snapshot(restore_count);
 
   if (spec_log_begin <= restore_count) {
@@ -173,7 +175,7 @@ void isa_difftest_raise_intr(word_t NO, uint64_t restore_count) {
 void isa_difftest_guided_exec(void * guide, uint64_t restore_count) {
 
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
-  pmem_record_restore(restore_count);
+  pmem_record_restore(reg_ss.inst_cnt);
   // clint_restore_snapshot(restore_count);
 
   if (spec_log_begin <= restore_count) {

@@ -184,7 +184,17 @@ extern uint64_t get_abs_instr_count();
 
 extern uint64_t br_count;
 
+struct br_info {
+  uint64_t pc;
+  uint64_t target;
+  int taken;
+  int type; // 0: branch 1: jmp
+};
+
+extern struct br_info br_log[];
+
 static inline def_rtl(j, vaddr_t target) {
+  // uint64_t orig_pc = cpu.pc, real_target;
 #ifdef CONFIG_GUIDED_EXEC
   if(cpu.guided_exec && cpu.execution_guide.force_set_jump_target) {
     if(cpu.execution_guide.jump_target != target) {
@@ -192,12 +202,14 @@ static inline def_rtl(j, vaddr_t target) {
       // printf("input jump target %lx & real jump target %lx does not match\n",
       //   cpu.execution_guide.jump_target, target
       // );
+      // real_target = cpu.execution_guide.jump_target;
       goto end_of_rtl_j;
     }
   }
 #endif
 
   cpu.pc = target;
+  // real_target = target;
 
   if (profiling_state == SimpointProfiling && profiling_started) {
     simpoint_profiling(cpu.pc, true, get_abs_instr_count());
@@ -218,6 +230,7 @@ static inline def_rtl(jr, rtlreg_t *target) {
       // printf("input jump target %lx & real jump target %lx does not match\n",
       //   cpu.execution_guide.jump_target, *target
       // );
+
       real_target = cpu.execution_guide.jump_target;
       goto end_of_rtl_jr;
     }
@@ -235,7 +248,10 @@ static inline def_rtl(jr, rtlreg_t *target) {
 end_of_rtl_jr:
 ; // make compiler happy
 #endif
-  printf("%lx,%lx,%d,%d,%lx\n", br_count, orig_pc, 1, 1, real_target);
+  br_log[br_count].pc = orig_pc - 4;
+  br_log[br_count].target = real_target;
+  br_log[br_count].taken = 1;
+  br_log[br_count].type = 1;
   br_count++;
 }
 
@@ -243,8 +259,12 @@ static inline def_rtl(jrelop, uint32_t relop,
     const rtlreg_t *src1, const rtlreg_t *src2, vaddr_t target) {
   bool is_jmp = interpret_relop(relop, *src1, *src2);
   printf("%lx,%lx,%d,%d,%lx\n", br_count, cpu.pc, is_jmp, 0, target);
-  rtl_j(s, (is_jmp ? target : s->snpc));
+  br_log[br_count].pc = cpu.pc - 4;
+  br_log[br_count].target = target;
+  br_log[br_count].taken = is_jmp;
+  br_log[br_count].type = 0;
   br_count++;
+  rtl_j(s, (is_jmp ? target : s->snpc));
 }
 
 //#include "rtl-fp.h"
