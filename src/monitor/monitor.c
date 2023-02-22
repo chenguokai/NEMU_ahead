@@ -37,8 +37,8 @@ static char *img_file = NULL;
 static int batch_mode = false;
 static int difftest_port = 1234;
 char *max_instr = NULL;
-char *reg_dump_file = NULL;
-char *mem_dump_file = NULL;
+extern char *reg_dump_file;
+extern char *mem_dump_file;
 
 int is_batch_mode() { return batch_mode; }
 

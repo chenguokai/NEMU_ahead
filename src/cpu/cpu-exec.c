@@ -24,6 +24,7 @@
 #include <locale.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <generated/autoconf.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -285,14 +286,16 @@ static const void* g_exec_table[TOTAL_INSTR] = {
 };
 uint64_t br_count = 0;
 
-#define BRLOGSIZE 0x100000
-
-struct br_info br_log[BRLOGSIZE];
+#ifdef CONFIG_BR_LOG
+struct br_info br_log[CONFIG_BR_LOG_SIZE];
+#endif // CONFIG_BR_LOG
 
 #ifdef CONFIG_LIGHTQS
 
 uint64_t stable_log_begin, spec_log_begin;
 
+extern int ifetch_mmu_state;
+extern int data_mmu_state;
 struct lightqs_reg_ss reg_ss, spec_reg_ss;
 
 void lightqs_take_reg_snapshot() {
@@ -320,6 +323,8 @@ void lightqs_take_reg_snapshot() {
   reg_ss.mode = cpu.mode;
   reg_ss.lr_addr = cpu.lr_addr;
   reg_ss.lr_valid = cpu.lr_valid;
+  reg_ss.ifetch_mmu_state = ifetch_mmu_state;
+  reg_ss.data_mmu_state = data_mmu_state;
 #ifdef CONFIG_RVV_010
   reg_ss.vtype = cpu.vtype;
   reg_ss.vstart = cpu.vstart;
@@ -357,6 +362,8 @@ void lightqs_take_spec_reg_snapshot() {
   spec_reg_ss.mode = cpu.mode;
   spec_reg_ss.lr_addr = cpu.lr_addr;
   spec_reg_ss.lr_valid = cpu.lr_valid;
+  spec_reg_ss.ifetch_mmu_state = ifetch_mmu_state;
+  spec_reg_ss.data_mmu_state = data_mmu_state;
 #ifdef CONFIG_RVV_010
   spec_reg_ss.vtype = cpu.vtype;
   spec_reg_ss.vstart = cpu.vstart;
@@ -398,6 +405,8 @@ uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
   cpu.mode = reg_ss.mode;
   cpu.lr_addr = reg_ss.lr_addr;
   cpu.lr_valid = reg_ss.lr_valid;
+  ifetch_mmu_state = reg_ss.ifetch_mmu_state;
+  data_mmu_state = reg_ss.data_mmu_state;
 #ifdef CONFIG_RVV_010
   cpu.vtype = reg_ss.vtype;
   cpu.vstart = reg_ss.vstart;
@@ -418,10 +427,10 @@ uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
 static int execute(int n) {
   static Decode s;
   prev_s = &s;
-  printf("ahead batch %d\n", n);
+  //printf("ahead batch %d\n", n);
   for (;n > 0; n --) {
-    printf("ahead pc %lx\n", cpu.pc);
-    printf("myspecialpc %lx %lx\n", g_nr_guest_instr, cpu.pc);
+    //printf("ahead pc %lx\n", cpu.pc);
+    //printf("myspecialpc %lx %lx\n", g_nr_guest_instr, cpu.pc);
     fetch_decode(&s, cpu.pc);
     cpu.debug.current_pc = s.pc;
     cpu.pc = s.snpc;
@@ -432,14 +441,16 @@ static int execute(int n) {
 #endif
     s.EHelper(&s);
     g_nr_guest_instr ++;
-    if (g_nr_guest_instr == 20000) {
+    #ifdef CONFIG_BR_LOG
+    if (g_nr_guest_instr == 10000) {
       // print out to file
       FILE *f = fopen("/nfs/home/chenguokai/NEMU_ahead/ahead.txt", "w");
-      for (int i = 0; i < 100; i++) {
+      for (int i = 0; i < 2000; i++) {
         fprintf(f, "%010lx %d %d %010lx\n", br_log[i].pc, br_log[i].taken, br_log[i].type, br_log[i].target);
       }
       fclose(f);
     }
+    #endif // CONFIG_BR_LOG
     IFDEF(CONFIG_DEBUG, debug_hook(s.pc, s.logbuf));
     IFDEF(CONFIG_DIFFTEST, difftest_step(s.pc, cpu.pc));
     if (nemu_state.state == NEMU_STOP) {
@@ -479,6 +490,7 @@ void cpu_exec(uint64_t n) {
   switch (nemu_state.state) {
     case NEMU_END: case NEMU_ABORT:
       printf("Program execution has ended. To restart the program, exit NEMU and run again.\n");
+      printf("debug: bridx = %ld\n", br_count);
       return;
     default:
       nemu_state.state = NEMU_RUNNING;

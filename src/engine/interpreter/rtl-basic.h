@@ -20,7 +20,7 @@
 #include "c_op.h"
 #include <checkpoint/profiling.h>
 #include <memory/vaddr.h>
-
+#include <generated/autoconf.h>
 /* RTL basic instructions */
 
 #define def_rtl_compute_reg(name) \
@@ -184,14 +184,9 @@ extern uint64_t get_abs_instr_count();
 
 extern uint64_t br_count;
 
-struct br_info {
-  uint64_t pc;
-  uint64_t target;
-  int taken;
-  int type; // 0: branch 1: jmp
-};
-
+#ifdef CONFIG_BR_LOG
 extern struct br_info br_log[];
+#endif // CONFIG_BR_LOG
 
 static inline def_rtl(j, vaddr_t target) {
   // uint64_t orig_pc = cpu.pc, real_target;
@@ -222,7 +217,7 @@ end_of_rtl_j:
 }
 
 static inline def_rtl(jr, rtlreg_t *target) {
-  uint64_t orig_pc = cpu.pc, real_target;
+  uint64_t real_target;
 #ifdef CONFIG_GUIDED_EXEC
   if(cpu.guided_exec && cpu.execution_guide.force_set_jump_target) {
     if(cpu.execution_guide.jump_target != *target) {
@@ -248,22 +243,27 @@ static inline def_rtl(jr, rtlreg_t *target) {
 end_of_rtl_jr:
 ; // make compiler happy
 #endif
-  br_log[br_count].pc = orig_pc - 4;
+
+#ifdef CONFIG_BR_LOG
+  br_log[br_count].pc = s->pc; // orig_pc - 4;
   br_log[br_count].target = real_target;
   br_log[br_count].taken = 1;
   br_log[br_count].type = 1;
   br_count++;
+#endif // CONFIG_BR_LOG
 }
 
 static inline def_rtl(jrelop, uint32_t relop,
     const rtlreg_t *src1, const rtlreg_t *src2, vaddr_t target) {
   bool is_jmp = interpret_relop(relop, *src1, *src2);
-  printf("%lx,%lx,%d,%d,%lx\n", br_count, cpu.pc, is_jmp, 0, target);
-  br_log[br_count].pc = cpu.pc - 4;
+  // printf("%lx,%lx,%d,%d,%lx\n", br_count, cpu.pc, is_jmp, 0, target);
+#ifdef CONFIG_BR_LOG
+  br_log[br_count].pc = s->pc; // cpu.pc - 4;
   br_log[br_count].target = target;
   br_log[br_count].taken = is_jmp;
   br_log[br_count].type = 0;
   br_count++;
+#endif // CONFIG_BR_LOG
   rtl_j(s, (is_jmp ? target : s->snpc));
 }
 

@@ -18,7 +18,7 @@
 
 #include <common.h>
 
-#define AHEAD_LENGTH 100
+#define AHEAD_LENGTH 500
 
 enum {
   NEMU_EXEC_RUNNING = 0, // unused by longjmp()
@@ -64,5 +64,8 @@ struct lightqs_reg_ss {
   uint64_t pc;
   uint64_t lr_addr, lr_valid;
   // RAM is store-logged at another position
+
+  int ifetch_mmu_state;
+  int data_mmu_state;
 };
 #endif

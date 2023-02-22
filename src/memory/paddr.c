@@ -28,9 +28,15 @@ bool is_in_mmio(paddr_t addr);
 
 unsigned long MEMORY_SIZE = CONFIG_MSIZE;
 
+#ifdef CONFIG_LIGHTQS
+#define PMEMBASE 0x1100000000ul
+#else
+#define PMEMBASE 0x100000000ul
+#endif // CONFIG_LIGHTQS
+
 #ifdef CONFIG_USE_MMAP
 #include <sys/mman.h>
-static uint8_t *pmem = (uint8_t *)0x100000000ul;
+static uint8_t *pmem = (uint8_t *)PMEMBASE;
 #else
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
@@ -168,6 +174,7 @@ void pmem_record_store(paddr_t addr) {
     spec_store_log_buf[spec_store_log_ptr].inst_cnt = g_nr_guest_instr;
     spec_store_log_buf[spec_store_log_ptr].addr = addr;
     spec_store_log_buf[spec_store_log_ptr].orig_data = rdata;
+    ++spec_store_log_ptr;
   }
 }
 

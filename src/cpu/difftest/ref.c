@@ -89,8 +89,8 @@ void difftest_csrcpy(void *dut, bool direction) {
   isa_difftest_csrcpy(dut, direction);
 }
 
-void difftest_uarchstatus_cpy(void *dut, bool direction) {
-  isa_difftest_uarchstatus_cpy(dut, direction);
+void difftest_uarchstatus_cpy(void *dut, bool direction, uint64_t restore_count) {
+  isa_difftest_uarchstatus_cpy(dut, direction, restore_count);
 }
 
 int difftest_store_commit(uint64_t *saddr, uint64_t *sdata, uint8_t *smask) {
@@ -113,6 +113,10 @@ void difftest_guided_exec(void * guide, uint64_t restore_count) {
 #else
   difftest_exec(1);
 #endif
+}
+
+void *difftest_query_br_log() {
+  return (void *)isa_difftest_query_br_log();
 }
 
 #ifdef CONFIG_QUERY_REF
@@ -139,10 +143,10 @@ void difftest_runahead_init() {
   stable_log_begin = 0;
   spec_log_begin = AHEAD_LENGTH;
   lightqs_take_reg_snapshot();
-  clint_take_snapshot();
+  // clint_take_snapshot();
   cpu_exec(AHEAD_LENGTH);
   lightqs_take_spec_reg_snapshot();
-  clint_take_spec_snapshot();
+  // clint_take_spec_snapshot();
 #endif // CONFIG_LIGHTQS
 #endif // CONFIG_SHARE
 }
