@@ -217,7 +217,9 @@ end_of_rtl_j:
 }
 
 static inline def_rtl(jr, rtlreg_t *target) {
+#ifdef CONFIG_BR_LOG
   uint64_t real_target;
+#endif // CONFIG_BR_LOG
 #ifdef CONFIG_GUIDED_EXEC
   if(cpu.guided_exec && cpu.execution_guide.force_set_jump_target) {
     if(cpu.execution_guide.jump_target != *target) {
@@ -225,15 +227,18 @@ static inline def_rtl(jr, rtlreg_t *target) {
       // printf("input jump target %lx & real jump target %lx does not match\n",
       //   cpu.execution_guide.jump_target, *target
       // );
-
+      #ifdef CONFIG_BR_LOG
       real_target = cpu.execution_guide.jump_target;
+      #endif // CONFIG_BR_LOG
       goto end_of_rtl_jr;
     }
   }
 #endif
 
   cpu.pc = *target;
+  #ifdef CONFIG_BR_LOG
   real_target = *target;
+  #endif // CONFIG_BR_LOG
 
   if (profiling_state == SimpointProfiling && profiling_started) {
     simpoint_profiling(cpu.pc, true, get_abs_instr_count());

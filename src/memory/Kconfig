@@ -33,6 +33,11 @@ config LIGHTQS
   depends on STORE_LOG
   default n
 
+config LIGHTQS_DEBUG
+  bool "lightssss debug log"
+  depends on LIGHTQS
+  default n
+
 config BR_LOG
   bool "Enable branch log"
   default n

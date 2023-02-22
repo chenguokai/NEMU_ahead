@@ -47,7 +47,7 @@ def_EHelper(jalr) {
 #endif
   IFNDEF(CONFIG_DIFFTEST_REF_NEMU, difftest_skip_dut(1, 3));
   rtl_jr(s, s0);
-  printf("%lx,%lx,%d,%d,%lx\n", br_count, cpu.pc, 1, 1, *s0);
+  //printf("%lx,%lx,%d,%d,%lx\n", br_count, cpu.pc, 1, 1, *s0);
 }
 
 def_EHelper(beq) {

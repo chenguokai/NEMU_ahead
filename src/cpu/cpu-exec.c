@@ -301,7 +301,9 @@ struct lightqs_reg_ss reg_ss, spec_reg_ss;
 void lightqs_take_reg_snapshot() {
   reg_ss.br_cnt = br_count;
   reg_ss.inst_cnt = g_nr_guest_instr;
+  #ifdef CONFIG_LIGHTQS_DEBUG
   printf("current g instr cnt = %lu\n", g_nr_guest_instr);
+  #endif // CONFIG_LIGHTQS_DEBUG
   reg_ss.pc = cpu.pc;
   reg_ss.mstatus = cpu.mstatus;
   reg_ss.mcause = cpu.mcause;
@@ -378,10 +380,14 @@ void lightqs_take_spec_reg_snapshot() {
 }
 
 uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
+  #ifdef CONFIG_LIGHTQS_DEBUG
   printf("lightqs restore reg n = %lu\n", n);
   printf("lightqs origin reg_ss inst cnt %lu\n", reg_ss.br_cnt);
+  #endif // CONFIG_LIGHTQS_DEBUG
   if (spec_log_begin <= n) {
+    #ifdef CONFIG_LIGHTQS_DEBUG
     printf("lightqs using spec snapshot\n");
+    #endif // CONFIG_LIGHTQS_DEBUG
     memcpy(&reg_ss, &spec_reg_ss, sizeof(reg_ss));
   }
   br_count = reg_ss.br_cnt;
@@ -418,7 +424,9 @@ uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
     cpu.gpr[i]._64 = reg_ss.gpr[i];
     cpu.fpr[i]._64 = reg_ss.fpr[i];
   }
+  #ifdef CONFIG_LIGHTQS_DEBUG
   printf("lightqs restore inst_cnt %lu\n", reg_ss.inst_cnt);
+  #endif // CONFIG_LIGHTQS_DEBUG
   return n - reg_ss.inst_cnt;
 }
 
@@ -427,10 +435,10 @@ uint64_t lightqs_restore_reg_snapshot(uint64_t n) {
 static int execute(int n) {
   static Decode s;
   prev_s = &s;
-  //printf("ahead batch %d\n", n);
   for (;n > 0; n --) {
-    //printf("ahead pc %lx\n", cpu.pc);
-    //printf("myspecialpc %lx %lx\n", g_nr_guest_instr, cpu.pc);
+#ifdef CONFIG_LIGHTQS_DEBUG
+    printf("ahead pc %lx %lx\n", g_nr_guest_instr, cpu.pc);
+#endif // CONFIG_LIGHTQS_DEBUG
     fetch_decode(&s, cpu.pc);
     cpu.debug.current_pc = s.pc;
     cpu.pc = s.snpc;
@@ -442,14 +450,16 @@ static int execute(int n) {
     s.EHelper(&s);
     g_nr_guest_instr ++;
     #ifdef CONFIG_BR_LOG
+    #ifdef CONFIG_LIGHTQS_DEBUG
     if (g_nr_guest_instr == 10000) {
       // print out to file
-      FILE *f = fopen("/nfs/home/chenguokai/NEMU_ahead/ahead.txt", "w");
+      // FILE *f = fopen("/nfs/home/chenguokai/NEMU_ahead/ahead.txt", "w");
       for (int i = 0; i < 2000; i++) {
-        fprintf(f, "%010lx %d %d %010lx\n", br_log[i].pc, br_log[i].taken, br_log[i].type, br_log[i].target);
+        fprintf(stdout, "%010lx %d %d %010lx\n", br_log[i].pc, br_log[i].taken, br_log[i].type, br_log[i].target);
       }
-      fclose(f);
+      // fclose(f);
     }
+    #endif // CONFIG_LIGHTQS_DEBUG
     #endif // CONFIG_BR_LOG
     IFDEF(CONFIG_DEBUG, debug_hook(s.pc, s.logbuf));
     IFDEF(CONFIG_DIFFTEST, difftest_step(s.pc, cpu.pc));

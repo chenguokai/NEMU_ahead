@@ -80,16 +80,18 @@ static void csr_writeback() {
   vl->val      = cpu.vl;
 #endif //CONFIG_RVV_010
 }
-
+#ifdef CONFIG_LIGHTQS
 extern uint64_t stable_log_begin, spec_log_begin;
 
 extern struct lightqs_reg_ss reg_ss;
 extern uint64_t g_nr_guest_instr;
 void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t restore_count) {
   if (restore) {
-    printf("restore count %lu\n", restore_count);
     uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
+    #ifdef CONFIG_LIGHTQS_DEBUG
+    printf("restore count %lu\n", restore_count);
     printf("left exec = %lx\n", left_exec);
+    #endif // CONFIG_LIGHTQS_DEBUG
     pmem_record_restore(reg_ss.inst_cnt);
     // clint_restore_snapshot(restore_count);
 
@@ -99,7 +101,9 @@ void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t resto
     }
     cpu_exec(left_exec);
   }
-
+#else
+void isa_difftest_regcpy(void *dut, bool direction) {
+#endif // CONFIG_LIGHTQS
   if (direction == DIFFTEST_TO_REF) {
     memcpy(&cpu, dut, DIFFTEST_REG_SIZE);
     csr_writeback();
@@ -107,7 +111,7 @@ void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t resto
     csr_prepare();
     memcpy(dut, &cpu, DIFFTEST_REG_SIZE);
   }
-
+#ifdef CONFIG_LIGHTQS
   // after processing, take another snapshot
   // FIXME: update spec_log_begin
   if (restore) {
@@ -121,7 +125,7 @@ void isa_difftest_regcpy(void *dut, bool direction, bool restore, uint64_t resto
     lightqs_take_spec_reg_snapshot();
     // clint_take_spec_snapshot();
   }
-  
+#endif // CO
 }
 
 void isa_difftest_csrcpy(void *dut, bool direction) {
@@ -131,7 +135,7 @@ void isa_difftest_csrcpy(void *dut, bool direction) {
     memcpy(dut, csr_array, 4096 * sizeof(rtlreg_t));
   }
 }
-
+#ifdef CONFIG_LIGHTQS
 void isa_difftest_uarchstatus_cpy(void *dut, bool direction, uint64_t restore_count) {
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
   pmem_record_restore(reg_ss.inst_cnt);
@@ -142,6 +146,9 @@ void isa_difftest_uarchstatus_cpy(void *dut, bool direction, uint64_t restore_co
     stable_log_begin = spec_log_begin;
   }
   cpu_exec(left_exec);
+#else
+void isa_difftest_uarchstatus_cpy(void *dut, bool direction) {
+#endif // CONFIG_LIGHTQS
 
   if (direction == DIFFTEST_TO_REF) {
     struct SyncState* ms = (struct SyncState*)dut;
@@ -153,6 +160,7 @@ void isa_difftest_uarchstatus_cpy(void *dut, bool direction, uint64_t restore_co
     memcpy(dut, &ms, sizeof(struct SyncState));
   }
 
+#ifdef CONFIG_LIGHTQS
   // after processing, take another snapshot
   lightqs_take_reg_snapshot();
   // clint_take_snapshot();
@@ -163,8 +171,9 @@ void isa_difftest_uarchstatus_cpy(void *dut, bool direction, uint64_t restore_co
 
   lightqs_take_spec_reg_snapshot();
   // clint_take_spec_snapshot();
+#endif // CONFIG_LIGHTQS
 }
-
+#ifdef CONFIG_LIGHTQS
 void isa_difftest_raise_intr(word_t NO, uint64_t restore_count) {
 
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
@@ -176,10 +185,12 @@ void isa_difftest_raise_intr(word_t NO, uint64_t restore_count) {
     stable_log_begin = spec_log_begin;
   }
   cpu_exec(left_exec);
-
+#else
+void isa_difftest_raise_intr(word_t NO) {
+#endif // CONFIG_LIGHTQS
   cpu.pc = raise_intr(NO, cpu.pc);
 
-  
+#ifdef CONFIG_LIGHTQS
   // after processing, take another snapshot
   // FIXME: update spec_log_begin
   lightqs_take_reg_snapshot();
@@ -191,9 +202,12 @@ void isa_difftest_raise_intr(word_t NO, uint64_t restore_count) {
   
   lightqs_take_spec_reg_snapshot();
   // clint_take_spec_snapshot();
+#endif // CONFIG_LIGHTQS
 }
 
 #ifdef CONFIG_GUIDED_EXEC
+
+#ifdef CONFIG_LIGHTQS
 void isa_difftest_guided_exec(void * guide, uint64_t restore_count) {
 
   uint64_t left_exec = lightqs_restore_reg_snapshot(restore_count);
@@ -205,13 +219,16 @@ void isa_difftest_guided_exec(void * guide, uint64_t restore_count) {
     stable_log_begin = spec_log_begin;
   }
   cpu_exec(left_exec);
-
+#else
+void isa_difftest_guided_exec(void * guide) {
+#endif // CONFIG_LIGHTQS
   memcpy(&cpu.execution_guide, guide, sizeof(struct ExecutionGuide));
 
   cpu.guided_exec = true;
   cpu_exec(1);
   cpu.guided_exec = false;
-  
+
+#ifdef CONFIG_LIGHTQS
   // after processing, take another snapshot
   // FIXME: update spec_log_begin
   lightqs_take_reg_snapshot();
@@ -222,6 +239,7 @@ void isa_difftest_guided_exec(void * guide, uint64_t restore_count) {
   cpu_exec(AHEAD_LENGTH);
   lightqs_take_spec_reg_snapshot();
   // clint_take_spec_snapshot();
+#endif // CONFIG_LIGHTQS
 }
 #endif
 
